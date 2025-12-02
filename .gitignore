@@ -1,0 +1,86 @@
+# --- Node / npm ---
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+package-lock.json
+pnpm-lock.yaml
+yarn.lock
+backend/node_modules/
+frontend/node_modules/
+
+# --- Build outputs ---
+dist/
+build/
+.cache/
+temp/
+tmp/
+coverage/
+frontend/dist/
+
+# --- Vite ---
+frontend/.vite/
+frontend/coverage/
+frontend/dist/
+
+# --- Logs ---
+logs
+*.log
+*.log.*
+log.txt
+backend/logs/
+frontend/logs/
+
+# --- Env vars / secrets ---
+.env
+.env.*
+!.env.example
+
+# Vite envs (frontend)
+frontend/.env
+frontend/.env.local
+frontend/.env.*.local
+
+# Backend envs
+backend/.env
+backend/.env.local
+backend/.env.*.local
+
+# Firebase service accounts (MUY IMPORTANTE)
+*.firebase-ad.json
+*serviceAccount*.json
+backend/app-infoexperto-firebase-ad.json
+
+# --- OS / Editor crap ---
+.DS_Store
+.DS_Store?
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# VSCode
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+
+# IntelliJ / WebStorm / JetBrains
+.idea/
+*.iml
+
+# --- Misc ---
+*.swp
+*.swo
+*.tmp
+*.bak
+*.orig
+
+# --- Test / Jest / Vitest ---
+jest-html-reporters-*
+coverage-final.json
+.nyc_output/
+
+# --- Storybook (si lo usas en el futuro) ---
+.storybook-out/
+.out/
+storybook-static/
