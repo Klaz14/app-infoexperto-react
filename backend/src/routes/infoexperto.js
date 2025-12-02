@@ -1,15 +1,14 @@
 // backend/src/routes/infoexperto.js
 import express from "express";
 import rateLimit from "express-rate-limit";
-import dotenv from "dotenv";
-
-dotenv.config();
 
 const router = express.Router();
 
-// --- Limitador de requests ---
+/**
+ * Rate limit por IP para cualquier ruta bajo /api/infoexperto
+ */
 const infoexpertoLimiter = rateLimit({
-  windowMs: 60 * 1000,
+  windowMs: 60 * 1000, // 1 minuto
   max: 10,
   standardHeaders: true,
   legacyHeaders: false,
@@ -19,41 +18,58 @@ const infoexpertoLimiter = rateLimit({
   },
 });
 
-function validarEntradaInfoexperto(req, res, next) {
-  const { tipoDocumento, numero } = req.body || {};
-  const tipo = (tipoDocumento || "").toLowerCase();
-  const limpio = (numero || "").toString().replace(/\D/g, "");
+// ================== Helpers de validación y mapping ==================
 
-  if (!tipo || !numero) {
-    return res.status(400).json({
+function limpiarNumero(numeroRaw) {
+  return numeroRaw.toString().replace(/\D/g, "");
+}
+
+/**
+ * Valida un número según tipo de documento.
+ * Devuelve { ok, error, numeroLimpio }
+ */
+function validarNumero(tipoDocumento, numeroRaw) {
+  const tipo = (tipoDocumento || "").toLowerCase();
+  const limpio = limpiarNumero(numeroRaw || "");
+
+  if (!tipo || !numeroRaw) {
+    return {
+      ok: false,
       error: "Campos requeridos: tipoDocumento y numero",
-    });
+      numeroLimpio: limpio,
+    };
   }
 
   if (tipo === "dni") {
     if (limpio.length < 7 || limpio.length > 8) {
-      return res.status(400).json({
+      return {
+        ok: false,
         error: "Formato de DNI inválido. Debe tener 7 u 8 dígitos.",
-      });
+        numeroLimpio: limpio,
+      };
     }
   } else if (tipo === "cuit" || tipo === "cuil") {
     if (limpio.length !== 11) {
-      return res.status(400).json({
+      return {
+        ok: false,
         error: "Formato de CUIT/CUIL inválido. Debe tener 11 dígitos.",
-      });
+        numeroLimpio: limpio,
+      };
     }
   } else {
-    return res.status(400).json({
+    return {
+      ok: false,
       error: "tipoDocumento debe ser 'dni' o 'cuit'",
-    });
+      numeroLimpio: limpio,
+    };
   }
 
-  req.numeroLimpio = limpio;
-  req.tipoLower = tipo;
-
-  next();
+  return { ok: true, error: null, numeroLimpio: limpio };
 }
 
+/**
+ * Inferimos el riesgo ALTO / MEDIO / BAJO a partir del scoring.
+ */
 function inferirRiesgoDesdeScoring(informe) {
   const scoringObj = informe?.scoringInforme;
   const scoring =
@@ -67,9 +83,13 @@ function inferirRiesgoDesdeScoring(informe) {
     return "BAJO";
   }
 
+  // Sin scoring -> lo dejamos en MEDIO (forzar revisión)
   return "MEDIO";
 }
 
+/**
+ * Peor situación BCRA 24 meses (bcra.resumen_historico)
+ */
 function obtenerPeorSituacionBcra24m(informe) {
   const resumen = informe?.bcra?.resumen_historico;
   if (!resumen || typeof resumen !== "object") return null;
@@ -85,6 +105,10 @@ function obtenerPeorSituacionBcra24m(informe) {
   return peor;
 }
 
+/**
+ * Mapeo del JSON de InfoExperto a datos internos.
+ * Acá sacamos el nombre y demás métricas.
+ */
 function mapearInfoexpertoADatosInternos(informe) {
   const identidad = informe?.identidad || {};
   const scoring = informe?.scoringInforme || {};
@@ -99,11 +123,13 @@ function mapearInfoexpertoADatosInternos(informe) {
 
   const riesgoApi = inferirRiesgoDesdeScoring(informe);
 
+  // Ingreso mensual estimado AFIP
   let ingresoMensualEstimado = 0;
   if (typeof condicionTributaria.monto_anual === "number") {
     ingresoMensualEstimado = condicionTributaria.monto_anual / 12;
   }
 
+  // Capacidad / compromiso (aprox desde scoringInforme)
   let capacidadTotal = 0;
   let compromisoMensual = 0;
   const credito = scoring?.credito ? Number(scoring.credito) : NaN;
@@ -116,6 +142,7 @@ function mapearInfoexpertoADatosInternos(informe) {
     compromisoMensual = deuda / 12;
   }
 
+  // Antigüedad laboral (meses)
   let antiguedadLaboralMeses = 0;
   const aniosIns = Number(identidad?.anios_inscripcion);
   if (Number.isFinite(aniosIns) && aniosIns > 0) {
@@ -156,6 +183,9 @@ function mapearInfoexpertoADatosInternos(informe) {
   };
 }
 
+/**
+ * Evaluación para RIESGO MEDIO (la misma que ya tenías)
+ */
 function evaluarRiesgoMedio(datos) {
   let score = 50;
   const motivos = [];
@@ -171,6 +201,7 @@ function evaluarRiesgoMedio(datos) {
     tieneInmueblesRegistrados,
   } = datos;
 
+  // 1) BCRA
   if (situacionBcraPeor24m != null) {
     if (situacionBcraPeor24m >= 3) {
       score -= 30;
@@ -188,6 +219,7 @@ function evaluarRiesgoMedio(datos) {
     motivos.push("Sin información clara de situación BCRA (neutro).");
   }
 
+  // 2) Actividad y antigüedad
   if (!tieneActividadFormal) {
     score -= 30;
     motivos.push("No se detecta actividad formal registrable.");
@@ -203,6 +235,7 @@ function evaluarRiesgoMedio(datos) {
     }
   }
 
+  // 3) Uso de capacidad
   let usoCapacidad = null;
   if (capacidadTotal > 0) {
     usoCapacidad = compromisoMensual / capacidadTotal;
@@ -244,6 +277,7 @@ function evaluarRiesgoMedio(datos) {
     motivos.push("Sin deudas registradas y sin capacidad informada (neutro).");
   }
 
+  // 4) DTI
   let dti = null;
   if (ingresoMensualEstimado > 0) {
     dti = compromisoMensual / ingresoMensualEstimado;
@@ -280,6 +314,7 @@ function evaluarRiesgoMedio(datos) {
     motivos.push("Sin información de ingresos estimados (neutro).");
   }
 
+  // 5) Activos
   if (tieneVehiculosRegistrados) {
     score += 5;
     motivos.push("Posee vehículos registrados a su nombre.");
@@ -316,91 +351,193 @@ function evaluarRiesgoMedio(datos) {
   };
 }
 
-// POST /api/infoexperto
-router.post(
-  "/",
-  infoexpertoLimiter,
-  validarEntradaInfoexperto,
-  async (req, res) => {
-    try {
-      const tipoLower = req.tipoLower;
-      const numeroLimpio = req.numeroLimpio;
+/**
+ * Llama a la API de InfoExperto y devuelve el mismo formato
+ * que ya usábamos para el front.
+ */
+async function consultarInfoexperto(tipoLower, numeroLimpio) {
+  const apiKey = process.env.INFOEXPERTO_API_KEY;
+  if (!apiKey) {
+    throw new Error("Falta INFOEXPERTO_API_KEY en el archivo .env");
+  }
 
-      const apiKey = process.env.INFOEXPERTO_API_KEY;
-      if (!apiKey) {
-        return res.status(500).json({
-          error: "Falta INFOEXPERTO_API_KEY en el archivo .env",
-        });
-      }
+  const formData = new FormData();
+  formData.append("apiKey", apiKey);
+  formData.append("tipo", "normal");
 
-      const formData = new FormData();
-      formData.append("apiKey", apiKey);
-      formData.append("tipo", "normal");
+  let url = "";
+  if (tipoLower === "cuit" || tipoLower === "cuil") {
+    url =
+      "https://servicio.infoexperto.com.ar/api/informeApi/obtenerInforme";
+    formData.append("cuit", numeroLimpio);
+  } else if (tipoLower === "dni") {
+    url =
+      "https://servicio.infoexperto.com.ar/api/informeApi/obtenerInformeDni";
+    formData.append("dni", numeroLimpio);
+  } else {
+    throw new Error("Tipo de documento no soportado");
+  }
 
-      let url = "";
+  const resp = await fetch(url, {
+    method: "POST",
+    body: formData,
+    redirect: "follow",
+  });
 
-      if (tipoLower === "cuit" || tipoLower === "cuil") {
-        url =
-          "https://servicio.infoexperto.com.ar/api/informeApi/obtenerInforme";
-        formData.append("cuit", numeroLimpio);
-      } else if (tipoLower === "dni") {
-        url =
-          "https://servicio.infoexperto.com.ar/api/informeApi/obtenerInformeDni";
-        formData.append("dni", numeroLimpio);
-      }
+  if (!resp.ok) {
+    const textoError = await resp.text();
+    const err = new Error("Error desde API InfoExperto");
+    err.status = resp.status;
+    err.detalle = textoError;
+    throw err;
+  }
 
-      const resp = await fetch(url, {
-        method: "POST",
-        body: formData,
-        redirect: "follow",
-      });
+  const apiJson = await resp.json();
+  const informe = apiJson?.data?.informe;
+  if (!informe) {
+    const err = new Error(
+      apiJson.message || "No se pudo obtener el informe desde InfoExperto"
+    );
+    err.codigo = apiJson.metadata?.codigo ?? null;
+    throw err;
+  }
 
-      if (!resp.ok) {
-        const textoError = await resp.text();
-        console.error("Error desde InfoExperto:", textoError);
-        return res.status(resp.status).json({
-          error: "Error desde API InfoExperto",
-          detalle: textoError,
-        });
-      }
+  const internos = mapearInfoexpertoADatosInternos(informe);
+  const riesgo = internos.riesgoApi;
+  const scoringApi = Number(informe?.scoringInforme?.scoring) || null;
 
-      const apiJson = await resp.json();
+  let riesgoInterno = null;
+  if (riesgo === "MEDIO") {
+    riesgoInterno = evaluarRiesgoMedio(internos);
+  }
 
-      const informe = apiJson?.data?.informe;
-      if (!informe) {
-        console.error("Respuesta sin data.informe:", apiJson);
-        return res.status(400).json({
-          error: apiJson.message || "No se pudo obtener el informe",
-          codigo: apiJson.metadata?.codigo ?? null,
-        });
-      }
+  return {
+    nombreCompleto: internos.nombreCompleto,
+    numero: numeroLimpio,
+    tipoDocumento: tipoLower,
+    riesgo,
+    scoringApi,
+    fechaInforme: apiJson?.data?.fecha || null,
+    riesgoInterno,
+    informeOriginal: informe,
+  };
+}
 
-      const internos = mapearInfoexpertoADatosInternos(informe);
-      const riesgo = internos.riesgoApi;
-      const scoringApi = Number(informe?.scoringInforme?.scoring) || null;
+// ================== Rutas ==================
 
-      let riesgoInterno = null;
-      if (riesgo === "MEDIO") {
-        riesgoInterno = evaluarRiesgoMedio(internos);
-      }
+/**
+ * POST /api/infoexperto
+ * Consulta única (usuarios y admins).
+ */
+router.post("/", infoexpertoLimiter, async (req, res) => {
+  try {
+    const { tipoDocumento, numero } = req.body || {};
+    const tipoLower = (tipoDocumento || "").toLowerCase();
 
-      return res.json({
-        nombreCompleto: internos.nombreCompleto,
-        numero: numeroLimpio,
-        tipoDocumento: tipoLower,
-        riesgo,
-        scoringApi,
-        fechaInforme: apiJson?.data?.fecha || null,
-        riesgoInterno,
-        informeOriginal: informe,
-      });
-    } catch (err) {
-      console.error("Error en /api/infoexperto:", err);
-      return res.status(500).json({
-        error: "Error interno del servidor",
+    const { ok, error, numeroLimpio } = validarNumero(tipoLower, numero);
+    if (!ok) {
+      return res.status(400).json({ error });
+    }
+
+    const data = await consultarInfoexperto(tipoLower, numeroLimpio);
+
+    return res.json(data);
+  } catch (err) {
+    console.error("Error en /api/infoexperto:", err);
+    if (err.status) {
+      return res.status(err.status).json({
+        error: err.message || "Error desde API InfoExperto",
+        detalle: err.detalle || null,
       });
     }
+    return res.status(500).json({
+      error: "Error interno del servidor",
+    });
   }
-);
+});
+
+/**
+ * POST /api/infoexperto/multiple
+ * Sólo admins. Permite varios DNI / CUIT separados.
+ * Body: { tipoDocumento, numeros: ["xx", "yy", ...] }
+ */
+router.post("/multiple", infoexpertoLimiter, async (req, res) => {
+  try {
+    const { tipoDocumento, numeros } = req.body || {};
+    const tipoLower = (tipoDocumento || "").toLowerCase();
+
+    if (!Array.isArray(numeros) || numeros.length === 0) {
+      return res.status(400).json({
+        error:
+          "Debes enviar un array 'numeros' con al menos un DNI/CUIT/CUIL.",
+      });
+    }
+
+    const isAdmin = req.user?.isAdmin === true;
+    if (!isAdmin) {
+      return res.status(403).json({
+        error: "Sólo los administradores pueden hacer consultas múltiples.",
+      });
+    }
+
+    const resultados = [];
+
+    for (const numeroRaw of numeros) {
+      const numeroString = String(numeroRaw || "").trim();
+      if (!numeroString) continue;
+
+      const { ok, error, numeroLimpio } = validarNumero(
+        tipoLower,
+        numeroString
+      );
+
+      if (!ok) {
+        resultados.push({
+          ok: false,
+          numeroOriginal: numeroString,
+          numero: numeroLimpio,
+          tipoDocumento: tipoLower,
+          error,
+        });
+        continue;
+      }
+
+      try {
+        const data = await consultarInfoexperto(tipoLower, numeroLimpio);
+        resultados.push({
+          ok: true,
+          numeroOriginal: numeroString,
+          ...data,
+        });
+      } catch (err) {
+        console.error(
+          "Error consultando InfoExperto para",
+          numeroString,
+          ":",
+          err
+        );
+        resultados.push({
+          ok: false,
+          numeroOriginal: numeroString,
+          numero: numeroLimpio,
+          tipoDocumento: tipoLower,
+          error:
+            err.message ||
+            "Error consultando la API de InfoExperto para este documento.",
+        });
+      }
+    }
+
+    return res.json({
+      tipoDocumento: tipoLower,
+      resultados,
+    });
+  } catch (err) {
+    console.error("Error en /api/infoexperto/multiple:", err);
+    return res.status(500).json({
+      error: "Error interno del servidor en consultas múltiples.",
+    });
+  }
+});
 
 export default router;

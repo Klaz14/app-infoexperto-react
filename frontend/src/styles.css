@@ -3,22 +3,27 @@
   --text-color: #0d47a1;
   --accent-color: #1976d2;
   --error-color: #ff5252;
+
+  /* Extras útiles */
+  --border-color: #1a237e;
+  --card-bg: radial-gradient(circle at top, #0a0a1a 0, #000 60%);
 }
 
+/* Reset básico */
 * {
   box-sizing: border-box;
 }
 
 body {
   margin: 0;
-  padding: 24px; /* 👈 espacio hacia los bordes de la pantalla */
+  padding: 24px; /* espacio hacia los bordes de la pantalla */
   background-color: var(--bg-color);
   color: var(--text-color);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
     Roboto, sans-serif;
 }
 
-/* Para centrar el contenedor en pantalla */
+/* Root de la app (para centrar login / informes verticalmente si se quiere) */
 .app-root {
   min-height: 100vh;
   display: flex;
@@ -26,17 +31,45 @@ body {
   justify-content: center;
 }
 
+/* Contenedor genérico (usado por login, etc.) */
 .app-container {
   max-width: 600px;
   width: 100%;
   margin: 40px auto;
   padding: 24px;
   border-radius: 16px;
-  border: 1px solid #1a237e;
-  background: radial-gradient(circle at top, #0a0a1a 0, #000 60%);
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
   box-shadow: 0 0 20px rgba(13, 71, 161, 0.4);
 }
 
+/* Contenedor específico para la pantalla de informes (un poco más ancho) */
+.reports-container {
+  max-width: 900px;
+  width: 100%;
+  margin: 40px auto;
+  padding: 24px;
+  border-radius: 16px;
+  border: 1px solid var(--border-color);
+  background: var(--card-bg);
+  box-shadow: 0 0 20px rgba(13, 71, 161, 0.5);
+}
+
+/* Títulos de página */
+.page-title {
+  margin: 0 0 4px 0;
+  text-align: left;
+  font-size: 1.4rem;
+  font-weight: 700;
+}
+
+.page-subtitle {
+  margin: 0 0 24px 0;
+  font-size: 0.9rem;
+  opacity: 0.8;
+}
+
+/* Subtítulos genéricos que ya tenías */
 h1 {
   margin-top: 0;
   text-align: center;
@@ -49,6 +82,16 @@ h1 {
   margin-bottom: 24px;
 }
 
+/* Tarjetita para el formulario dentro de reports */
+.form-card {
+  border-radius: 12px;
+  border: 1px solid var(--border-color);
+  padding: 16px 18px 18px;
+  background: #050510;
+  margin-bottom: 20px;
+}
+
+/* Estructura de formulario */
 form {
   display: flex;
   flex-direction: column;
@@ -56,37 +99,63 @@ form {
   margin-bottom: 20px;
 }
 
-.field-group {
+.form-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.form-row > * {
+  flex: 1;
+  min-width: 140px;
+}
+
+.field-group,
+.form-field {
   display: flex;
   flex-direction: column;
   gap: 4px;
 }
 
-label {
+label,
+.form-label {
   font-size: 0.9rem;
 }
 
+/* Inputs, selects y ahora también textarea */
 input,
-select {
+select,
+textarea {
   padding: 10px 12px;
   border-radius: 8px;
-  border: 1px solid #1a237e;
+  border: 1px solid var(--border-color);
   background-color: #02020a;
   color: var(--text-color);
   outline: none;
+  font-family: inherit;
+  font-size: 0.95rem;
 }
 
-input::placeholder {
+textarea {
+  min-height: 90px;
+  resize: vertical;
+}
+
+input::placeholder,
+textarea::placeholder {
   color: rgba(25, 118, 210, 0.6);
 }
 
 input:focus,
-select:focus {
+select:focus,
+textarea:focus {
   border-color: var(--accent-color);
   box-shadow: 0 0 0 1px var(--accent-color);
 }
 
-button {
+/* Botones */
+button,
+.primary-button {
   padding: 10px 14px;
   border-radius: 999px;
   border: none;
@@ -97,38 +166,45 @@ button {
   transition: transform 0.1s ease, box-shadow 0.1s ease, opacity 0.1s ease;
 }
 
-button:disabled {
+button:disabled,
+.primary-button:disabled {
   opacity: 0.4;
   cursor: default;
   box-shadow: none;
 }
 
-button:not(:disabled):hover {
+button:not(:disabled):hover,
+.primary-button:not(:disabled):hover {
   transform: translateY(-1px);
   box-shadow: 0 4px 12px rgba(25, 118, 210, 0.6);
 }
 
-.estado {
+/* Mensajes de estado */
+.estado,
+.status-message {
   min-height: 20px;
   font-size: 0.9rem;
   margin-bottom: 12px;
 }
 
-.estado.error {
+.estado.error,
+.status-message.error {
   color: var(--error-color);
 }
 
+/* Resultado simple (modo 1 informe) */
 .resultado {
   margin-top: 20px;
-  border-top: 1px solid #1a237e;
+  border-top: 1px solid var(--border-color);
   padding-top: 16px;
 }
 
-.resultado h2 {
+.resultado h2,
+.resultado-title {
   margin-top: 0;
 }
 
-/* Nombre de la persona (lo usaremos después) */
+/* Nombre de la persona */
 .resultado-nombre {
   margin: 0 0 12px 0;
   text-align: left;
@@ -137,12 +213,60 @@ button:not(:disabled):hover {
   font-weight: 600;
 }
 
+/* Contenedor de múltiples resultados (modo admin) */
+.multi-results {
+  margin-top: 20px;
+  border-top: 1px solid var(--border-color);
+  padding-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Cada resultado individual */
+.multi-result-item {
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: #050515;
+  border: 1px solid rgba(26, 35, 126, 0.6);
+}
+
+/* Header del resultado (nombre + doc + badge) */
+.multi-result-header {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 8px;
+}
+
+.multi-result-name {
+  font-size: 1rem;
+  font-weight: 600;
+  color: #e3f2fd;
+}
+
+.multi-result-doc {
+  font-size: 0.8rem;
+  opacity: 0.8;
+}
+
+/* Errores individuales por número */
+.multi-result-error {
+  font-size: 0.85rem;
+  color: var(--error-color);
+}
+
+.multi-result-error strong {
+  font-weight: 600;
+}
+
 /* Badges de riesgo */
 .riesgos-container {
   display: flex;
   flex-wrap: wrap;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 4px;
 }
 
 .riesgo-badge {
@@ -156,7 +280,7 @@ button:not(:disabled):hover {
   opacity: 0.35;
 }
 
-/* Colores estilo InfoExperto */
+/* Colores estilo InfoExperto (por atributo) */
 .riesgo-badge[data-riesgo="ALTO"] {
   background-color: #e00000; /* rojo */
 }
@@ -169,12 +293,25 @@ button:not(:disabled):hover {
   background-color: #4caf17; /* verde */
 }
 
+/* Colores estilo InfoExperto (por clase – por si los usas desde React) */
+.riesgo-badge.riesgo-alto {
+  background-color: #e00000;
+}
+
+.riesgo-badge.riesgo-medio {
+  background-color: #8d6e00;
+}
+
+.riesgo-badge.riesgo-bajo {
+  background-color: #4caf17;
+}
+
 .riesgo-badge.activo {
   opacity: 1;
   box-shadow: 0 0 14px rgba(255, 255, 255, 0.25);
 }
 
-/* Detalle de motivos para riesgo medio (lo usaremos después) */
+/* Detalle de motivos para riesgo medio (si lo usas más adelante) */
 .riesgo-detalle {
   margin-top: 8px;
 }
@@ -196,6 +333,7 @@ button:not(:disabled):hover {
   margin-bottom: 2px;
 }
 
+/* JSON crudo / debug */
 pre {
   background-color: #02020a;
   border-radius: 8px;
@@ -205,10 +343,12 @@ pre {
   font-size: 0.85rem;
 }
 
+/* Utilidad */
 .oculto {
   display: none;
 }
 
+/* Barra superior con email, rol y logout */
 .top-bar {
   display: flex;
   justify-content: flex-end;
@@ -222,6 +362,7 @@ pre {
   opacity: 0.8;
 }
 
+/* Botón de logout */
 .logout-btn {
   padding: 6px 10px;
   border-radius: 999px;
@@ -278,9 +419,10 @@ pre {
   opacity: 0.9;
 }
 
+/* Badge de rol (usuario / admin) */
 .role-badge {
   padding: 4px 14px;
-  border-radius: 999px;              /* elipse tipo los badges de riesgo */
+  border-radius: 999px; /* elipse tipo los badges de riesgo */
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -303,4 +445,59 @@ pre {
   background: linear-gradient(90deg, #8d6e00, #ffb300);
   color: #fff8e1;
   box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
+}
+
+/* Centrar el título principal de la página de reportes */
+.page-title {
+  text-align: center;
+  margin-top: 0;
+  margin-bottom: 8px;
+}
+
+/* El form ya se define como columna, pero este wrapper
+   se usa para acomodar los campos. Lo dejamos en columna
+   para que cada label tenga su input debajo. */
+.form-row {
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+/* Si llegamos a utilizar un contenedor interno para el form
+   (por ejemplo .reports-card), le quitamos el borde para
+   que NO haya doble contorno. */
+.reports-card {
+  margin-top: 16px;
+  padding: 0;              /* sin padding extra de tarjeta */
+  border: none;            /* 👈 sin borde interno */
+  background: transparent; /* fondo transparente */
+  box-shadow: none;        /* sin sombra extra */
+}
+
+/* Textarea para admins (múltiples documentos) */
+.multi-textarea {
+  padding: 10px 12px;
+  border-radius: 8px;
+  border: 1px solid #1a237e;
+  background-color: #02020a;
+  color: var(--text-color);
+  outline: none;
+  resize: vertical;
+  min-height: 70px;
+}
+
+.multi-textarea:focus {
+  border-color: var(--accent-color);
+  box-shadow: 0 0 0 1px var(--accent-color);
+}
+
+/* Bloque de ayuda para formato múltiple (solo admins) */
+.multi-helper-text {
+  margin-top: 6px;
+  font-size: 0.8rem;
+  opacity: 0.75;
+}
+
+.multi-sample-highlight {
+  font-weight: 600;
 }
