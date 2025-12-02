@@ -11,7 +11,7 @@
 
 body {
   margin: 0;
-  padding: 0;
+  padding: 24px; /* 👈 espacio hacia los bordes de la pantalla */
   background-color: var(--bg-color);
   color: var(--text-color);
   font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI",
@@ -276,4 +276,31 @@ pre {
   transform: translateY(0);
   box-shadow: none;
   opacity: 0.9;
+}
+
+.role-badge {
+  padding: 4px 14px;
+  border-radius: 999px;              /* elipse tipo los badges de riesgo */
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border: none;
+}
+
+/* USUARIO -> azul de la página */
+.role-user {
+  background: linear-gradient(90deg, #0d47a1, #1976d2);
+  color: #e3f2fd;
+  box-shadow: 0 0 10px rgba(25, 118, 210, 0.5);
+}
+
+/* ADMIN -> dorado, estilo riesgo medio */
+.role-admin {
+  background: linear-gradient(90deg, #8d6e00, #ffb300);
+  color: #fff8e1;
+  box-shadow: 0 0 10px rgba(255, 193, 7, 0.5);
 }

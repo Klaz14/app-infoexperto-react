@@ -1,12 +1,13 @@
-// src/components/ReportsPage.jsx
+// frontend/src/components/ReportsPage.jsx
 import React, { useState } from "react";
+import { auth } from "../firebase";
 
 const RIESGOS = ["BAJO", "MEDIO", "ALTO"];
 
 function ReportsPage() {
   const [docType, setDocType] = useState("CUIT_CUIL");
   const [docNumber, setDocNumber] = useState("");
-  const [risk, setRisk] = useState(null); // "BAJO" | "MEDIO" | "ALTO"
+  const [risk, setRisk] = useState(null);
   const [loading, setLoading] = useState(false);
   const [estado, setEstado] = useState("");
   const [error, setError] = useState("");
@@ -24,16 +25,28 @@ function ReportsPage() {
 
     setLoading(true);
     try {
-      // 🔒 Esto debería pegarle a TU backend Node,
-      // que a su vez llama a la API de InfoExperto con la API key del .env.
-      const resp = await fetch("/api/infoexperto/consulta", {
+      const user = auth.currentUser;
+      if (!user) {
+        setError("No hay sesión activa. Volvé a iniciar sesión.");
+        setLoading(false);
+        return;
+      }
+
+      const token = await user.getIdToken();
+
+      // Mapeamos docType a lo que espera el backend: "dni" o "cuit"
+      const tipoDocumento =
+        docType === "DNI" ? "dni" : "cuit"; // para CUIT/CUIL usamos "cuit"
+
+      const resp = await fetch("http://localhost:3000/api/infoexperto", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
         },
         body: JSON.stringify({
-          tipoDocumento: docType, // "CUIT_CUIL" o "DNI"
-          numeroDocumento: docNumber.trim(),
+          tipoDocumento,
+          numero: docNumber.trim(),
         }),
       });
 
@@ -42,15 +55,15 @@ function ReportsPage() {
       }
 
       const data = await resp.json();
-      // Suponemos que tu backend devuelve algo como { riesgo: "ALTO" }
       const riesgo = (data.riesgo || "").toUpperCase();
 
-      if (!RIESGOS.includes(riesgo)) {
-        // fallback por si la API todavía no está lista
-        setEstado("Consulta realizada. Ajustá el mapeo de riesgo al integrar la API real.");
-      } else {
+      if (RIESGOS.includes(riesgo)) {
         setRisk(riesgo);
         setEstado("Consulta realizada correctamente.");
+      } else {
+        setEstado(
+          "Consulta realizada, pero el riesgo devuelto no es ALTO/MEDIO/BAJO."
+        );
       }
     } catch (err) {
       console.error(err);
@@ -62,7 +75,7 @@ function ReportsPage() {
 
   return (
     <>
-      <h1>Informes InfoExperto</h1>
+      <h1>Informes Punto Financiamiento</h1>
       <p className="subtitle">
         Selecciona el tipo de documento, ingresa el número y solicita el informe.
       </p>
@@ -104,38 +117,17 @@ function ReportsPage() {
         </button>
       </form>
 
-      <div className="resultado">
-        <h2>Riesgo</h2>
-        <div className="riesgos-container">
-          <span
-            className={
-              "riesgo-badge" +
-              (risk === "BAJO" ? " activo" : "")
-            }
-            data-riesgo="BAJO"
-          >
-            RIESGO BAJO
-          </span>
-          <span
-            className={
-              "riesgo-badge" +
-              (risk === "MEDIO" ? " activo" : "")
-            }
-            data-riesgo="MEDIO"
-          >
-            RIESGO MEDIO
-          </span>
-          <span
-            className={
-              "riesgo-badge" +
-              (risk === "ALTO" ? " activo" : "")
-            }
-            data-riesgo="ALTO"
-          >
-            RIESGO ALTO
-          </span>
+      {/* Mostrar el riesgo solo si hay dato */}
+      {risk && (
+        <div className="resultado">
+          <h2>Riesgo</h2>
+          <div className="riesgos-container">
+            <span className="riesgo-badge activo" data-riesgo={risk}>
+              {`RIESGO ${risk}`}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
     </>
   );
 }

@@ -1,10 +1,12 @@
 // backend/src/middlewares/authMiddleware.js
-import "../firebaseAdmin.js"; // asegura que admin esté inicializado
+// Nos aseguramos de que la app de Firebase Admin esté inicializada
+import "../firebaseAdmin.js";
 import { getAuth } from "firebase-admin/auth";
 
 /**
  * Middleware de autenticación con Firebase.
  * Espera un header: Authorization: Bearer <ID_TOKEN>
+ * y adjunta req.user con info básica + flag isAdmin.
  */
 export async function authMiddleware(req, res, next) {
   try {
@@ -18,18 +20,25 @@ export async function authMiddleware(req, res, next) {
     }
 
     const idToken = match[1].trim();
-
     if (!idToken) {
       return res
         .status(401)
         .json({ error: "Token de autenticación vacío o inválido." });
     }
 
-    const decodedToken = await getAuth().verifyIdToken(idToken);
+    // Usamos la app por defecto inicializada en firebaseAdmin.js
+    const auth = getAuth();
+    const decodedToken = await auth.verifyIdToken(idToken);
+
+    // Custom claim de admin (más adelante podés agregar otros roles)
+    const isAdmin =
+      decodedToken.admin === true || decodedToken.role === "admin";
 
     req.user = {
       uid: decodedToken.uid,
       email: decodedToken.email || null,
+      isAdmin,
+      // dejamos el resto de claims por si las necesitás después
       ...decodedToken,
     };
 
