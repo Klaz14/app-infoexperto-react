@@ -501,3 +501,18 @@ pre {
 .multi-sample-highlight {
   font-weight: 600;
 }
+
+.riesgo-extra {
+  margin-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;              /* 👈 separa "Ver análisis interno" del PDF */
+}
+
+.pdf-wrapper {
+  margin-top: 4px;
+}
+
+.pdf-button {
+  width: fit-content;
+}
