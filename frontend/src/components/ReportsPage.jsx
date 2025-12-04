@@ -3,7 +3,7 @@ import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
 import { generateReportPdf } from "./generateReportPdf";
 import { FaWhatsapp } from "react-icons/fa";
-
+import Swal from "sweetalert2";
 
 const WHATSAPP_NUMBER = "5493813426488"; // ← cambiá esto por el número real, sin + ni espacios
 
@@ -369,15 +369,94 @@ function ReportsPage({ currentUser, isAdmin }) {
     }
   };
 
-  const handleWhatsAppClick = (tipo, numeroDoc, nombre) => {
-    const phone = WHATSAPP_NUMBER || "5493813426488"; // fallback por si te olvidás de cambiarlo
-    const tipoLabel = tipo || "DOC";
+  const handleWhatsAppClick = async (tipo, numeroDoc, nombre) => {
+    const phone = WHATSAPP_NUMBER || "5493813426488"; // remplazá por el real
     const numeroLabel = numeroDoc || "";
     const nombreLabel = nombre || "";
 
-    const text = `Hola, quiero gestionar mi consulta sobre el financiamiento de ${tipoLabel} ${numeroLabel} a nombre de ${nombreLabel}.`;
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    const { value: montoRaw } = await Swal.fire({
+      title: "Ingresa el monto de tu financiación:",
+      input: "text",
+      inputPlaceholder: "$ 0",
+      inputAttributes: {
+        inputmode: "numeric",
+        autocomplete: "off",
+      },
+      showCancelButton: true,
+      confirmButtonText: "Continuar",
+      cancelButtonText: "Cancelar",
+      allowOutsideClick: false,
+      allowEscapeKey: true,
 
+      // 👉 Formateo en tiempo real SIN decimales
+      didOpen: () => {
+        const input = Swal.getInput();
+        if (!input) return;
+
+        input.addEventListener("input", () => {
+          // Quitamos todo lo que no sea dígito
+          const cleaned = input.value.replace(/[^0-9]/g, "");
+
+          if (!cleaned) {
+            input.value = "";
+            return;
+          }
+
+          const num = Number(cleaned);
+          if (Number.isNaN(num)) {
+            input.value = "";
+            return;
+          }
+
+          // Formato tipo 1,000,000 (sin .00 dentro del input)
+          const formatted = num.toLocaleString("en-US", {
+            maximumFractionDigits: 0,
+          });
+
+          input.value = "$ " + formatted;
+        });
+      },
+
+      preConfirm: (value) => {
+        if (!value) {
+          Swal.showValidationMessage("Por favor, ingresá un monto.");
+          return false;
+        }
+
+        // De nuevo limpiamos: solo dígitos
+        const cleaned = value.replace(/[^0-9]/g, "");
+        const num = Number(cleaned);
+
+        if (Number.isNaN(num) || num <= 0) {
+          Swal.showValidationMessage("Ingresá un monto válido mayor a 0.");
+          return false;
+        }
+
+        // Devolvemos el número "crudo" en enteros
+        return num;
+      },
+    });
+
+    // Si canceló, no hacemos nada
+    if (!montoRaw) {
+      return;
+    }
+
+    // Ahora sí, lo formateamos bonito para WhatsApp CON decimales
+    const montoNumber = Number(montoRaw);
+    const formattedAmount =
+      "$ " +
+      montoNumber.toLocaleString("en-US", {
+        minimumFractionDigits: 2,
+        maximumFractionDigits: 2,
+      });
+
+    const text = `Hola, gestiono consulta sobre el siguiente perfil:
+    ${nombreLabel}
+    DNI/CUIL: ${numeroLabel}
+    Monto de financiación: ${formattedAmount}`;
+
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     window.open(url, "_blank");
   };
 
