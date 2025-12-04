@@ -2,6 +2,10 @@
 import React, { useState } from "react";
 import { getAuth } from "firebase/auth";
 import { generateReportPdf } from "./generateReportPdf";
+import { FaWhatsapp } from "react-icons/fa";
+
+
+const WHATSAPP_NUMBER = "5493813426488"; // ← cambiá esto por el número real, sin + ni espacios
 
 /**
  * Construye el texto visible del riesgo según el rol.
@@ -365,6 +369,18 @@ function ReportsPage({ currentUser, isAdmin }) {
     }
   };
 
+  const handleWhatsAppClick = (tipo, numeroDoc, nombre) => {
+    const phone = WHATSAPP_NUMBER || "5493813426488"; // fallback por si te olvidás de cambiarlo
+    const tipoLabel = tipo || "DOC";
+    const numeroLabel = numeroDoc || "";
+    const nombreLabel = nombre || "";
+
+    const text = `Hola, quiero gestionar mi consulta sobre el financiamiento de ${tipoLabel} ${numeroLabel} a nombre de ${nombreLabel}.`;
+    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+
+    window.open(url, "_blank");
+  };
+
   return (
     <main className="reports-container">
       <h1 className="page-title">Informes Punto Financiero</h1>
@@ -521,6 +537,20 @@ function ReportsPage({ currentUser, isAdmin }) {
                         >
                           {riesgoLabel}
                         </span>
+
+                        {/* Botón solo para usuarios (no admins) */}
+                        {!isAdmin && (
+                          <button
+                            type="button"
+                            className="whatsapp-button"
+                            onClick={() =>
+                              handleWhatsAppClick(tipo, numeroDoc, nombreHeader)
+                            }
+                          >
+                            <FaWhatsapp className="whatsapp-icon" />
+                            <span>GESTIONA TU CONSULTA</span>
+                          </button>
+                        )}
                       </div>
                     )}
                   </div>

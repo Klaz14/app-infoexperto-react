@@ -516,3 +516,34 @@ pre {
 .pdf-button {
   width: fit-content;
 }
+
+.whatsapp-button {
+  background: #25D366;      /* verde WhatsApp */
+  color: #ffffff;
+  font-size: 0.8rem;
+  padding: 6px 14px;
+  border-radius: 999px;
+  border: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-weight: 600;
+}
+
+.whatsapp-icon {
+  font-size: 1rem;
+}
+
+/* opcional: hover un poco más intenso */
+.whatsapp-button:not(:disabled):hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(37, 211, 102, 0.6);
+}
+
+.riesgos-container {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 4px;
+  margin-left: auto;   /* 👈 empuja el bloque al borde derecho */
+}
