@@ -525,8 +525,8 @@ function ReportsPage({ currentUser, isAdmin }) {
                     )}
                   </div>
 
-                  {/* Detalle adicional SOLO para admins y RIESGO MEDIO */}
-                  {isAdmin && riesgoUpper === "MEDIO" && (
+                  {/* Detalle adicional SOLO para admins y RIESGO MEDIO/BAJO */}
+                  {isAdmin && (riesgoUpper === "MEDIO" || riesgoUpper === "BAJO") && (
                     <div className="riesgo-extra">
                       <button
                         type="button"
@@ -592,7 +592,7 @@ function ReportsPage({ currentUser, isAdmin }) {
                         </div>
                       )}
 
-                      {/* Botón PDF debajo de la info adicional para MEDIO */}
+                      {/* Botón PDF debajo de la info adicional para MEDIO/BAJO */}
                       <div className="pdf-wrapper">
                         <button
                           type="button"
@@ -605,8 +605,8 @@ function ReportsPage({ currentUser, isAdmin }) {
                     </div>
                   )}
 
-                  {/* Botón PDF para ALTO/BAJO (solo admins) */}
-                  {isAdmin && riesgoUpper !== "MEDIO" && (
+                  {/* Botón PDF para ALTO (solo admins, sin panel extra) */}
+                  {isAdmin && riesgoUpper === "ALTO" && (
                     <div className="pdf-wrapper">
                       <button
                         type="button"
@@ -617,6 +617,7 @@ function ReportsPage({ currentUser, isAdmin }) {
                       </button>
                     </div>
                   )}
+
                 </div>
               );
             })}
