@@ -30,7 +30,7 @@ function Login() {
 
   return (
     <>
-      <h1>Consulta InfoExperto</h1>
+      <h1>Consulta Punto Financiamiento</h1>
       <p className="subtitle">
         Inicia sesión con tu cuenta autorizada para acceder a los informes.
       </p>

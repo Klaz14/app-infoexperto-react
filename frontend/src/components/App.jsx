@@ -54,7 +54,7 @@ function App() {
   if (checkingAuth) {
     return (
       <>
-        <h1>Informes Punto Financiero</h1>
+        <h1>Informes Punto Financiamiento</h1>
         <p className="subtitle">Cargando sesión...</p>
       </>
     );

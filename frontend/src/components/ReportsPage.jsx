@@ -462,7 +462,7 @@ function ReportsPage({ currentUser, isAdmin }) {
 
   return (
     <main className="reports-container">
-      <h1 className="page-title">Informes Punto Financiero</h1>
+      <h1 className="page-title">Informes Punto Financiamiento</h1>
       <p className="page-subtitle">
         Seleccioná el tipo de documento, ingresá el número y solicitá el
         informe.
