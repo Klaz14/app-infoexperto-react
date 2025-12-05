@@ -250,7 +250,7 @@ function ReportsPage({ currentUser, isAdmin }) {
 
         for (const num of numerosSeparados) {
           try {
-            const resp = await fetch("http://localhost:3000/api/infoexperto", {
+            const resp = await fetch("/api/infoexperto", {
               method: "POST",
               headers,
               body: JSON.stringify({
@@ -302,7 +302,7 @@ function ReportsPage({ currentUser, isAdmin }) {
         );
       } else {
         // 🔹 Consulta simple (usuarios y admins)
-        const resp = await fetch("http://localhost:3000/api/infoexperto", {
+        const resp = await fetch("/api/infoexperto", {
           method: "POST",
           headers,
           body: JSON.stringify({
