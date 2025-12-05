@@ -1,15 +1,23 @@
-const API_BASE = import.meta.env.VITE_API_BASE_URL || "";
+const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
 const url = `${API_BASE}/api/infoexperto`;
 
 export async function consultarInfoexperto({ token, tipoDocumento, numero }) {
-  const resp = await fetch(url, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`,
-    },
-    body: JSON.stringify({ tipoDocumento, numero }),
-  });
+  let resp;
+
+  try {
+    resp = await fetch(url, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${token}`,
+      },
+      body: JSON.stringify({ tipoDocumento, numero }),
+    });
+  } catch (e) {
+    const err = new Error("No se pudo conectar con el servidor.");
+    err.causa = e;
+    throw err;
+  }
 
   const data = await resp.json().catch(() => null);
 
