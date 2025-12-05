@@ -4,6 +4,8 @@ import { getAuth } from "firebase/auth";
 import { generateReportPdf } from "./generateReportPdf";
 import { FaWhatsapp } from "react-icons/fa";
 import Swal from "sweetalert2";
+import { consultarInfoexperto } from "../services/infoexpertoApi";
+
 
 const WHATSAPP_NUMBER = "5493813426488"; // ← cambiá esto por el número real, sin + ni espacios
 
@@ -203,150 +205,103 @@ function ReportsPage({ currentUser, isAdmin }) {
       : "Ej: 20-12345678-3";
   })();
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    setEstado("");
-    setResultados([]);
+    const handleSubmit = async (e) => {
+      e.preventDefault();
+      setEstado("");
+      setResultados([]);
 
-    const texto = numero.trim();
-    if (!texto) {
-      setEstado("Ingresá al menos un DNI o CUIT/CUIL.");
-      return;
-    }
+      const texto = numero.trim();
+      if (!texto) {
+        setEstado("Ingresá al menos un DNI o CUIT/CUIL.");
+        return;
+      }
 
-    // 🔐 Obtener usuario desde props o desde Firebase Auth global
-    const auth = getAuth();
-    const user = currentUser || auth.currentUser;
+      // 🔐 Obtener usuario desde props o desde Firebase Auth global
+      const auth = getAuth();
+      const user = currentUser || auth.currentUser;
 
-    if (!user) {
-      setEstado(
-        "No hay usuario autenticado. Cerrá sesión y volvé a iniciar sesión."
-      );
-      return;
-    }
-
-    try {
-      setCargando(true);
-
-      const token = await user.getIdToken();
-      const numerosSeparados = limpiarYSepararNumeros(texto);
-
-      // Bloquear múltiples consultas para usuarios NO admin
-      if (!isAdmin && numerosSeparados.length > 1) {
+      if (!user) {
         setEstado(
-          "Solo se permite una consulta por vez para usuarios no administradores."
+          "No hay usuario autenticado. Cerrá sesión y volvé a iniciar sesión."
         );
         return;
       }
 
-      const headers = {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${token}`,
-      };
+      try {
+        setCargando(true);
 
-      // 🔁 Admin: múltiples consultas secuenciales
-      if (isAdmin && numerosSeparados.length > 1) {
-        const acumulados = [];
+        const token = await user.getIdToken();
+        const numerosSeparados = limpiarYSepararNumeros(texto);
 
-        for (const num of numerosSeparados) {
-          try {
-            const resp = await fetch("/api/infoexperto", {
-              method: "POST",
-              headers,
-              body: JSON.stringify({
+        // Bloquear múltiples consultas para usuarios NO admin
+        if (!isAdmin && numerosSeparados.length > 1) {
+          setEstado(
+            "Solo se permite una consulta por vez para usuarios no administradores."
+          );
+          return;
+        }
+
+        // 🔁 Admin: múltiples consultas secuenciales
+        if (isAdmin && numerosSeparados.length > 1) {
+          const acumulados = [];
+
+          for (const num of numerosSeparados) {
+            try {
+              const data = await consultarInfoexperto({
+                token,
                 tipoDocumento,
                 numero: num,
-              }),
-            });
-
-            const data = await resp.json().catch(() => null);
-
-            if (!resp.ok) {
-              acumulados.push({
-                ok: false,
-                numeroOriginal: num,
-                error:
-                  data?.error ||
-                  `Error consultando informe (HTTP ${resp.status})`,
-                codigo: data?.codigo,
               });
-              continue;
-            }
 
-            if (data?.error) {
-              acumulados.push({
-                ok: false,
-                numeroOriginal: num,
-                error: data.error,
-                codigo: data.codigo,
-              });
-            } else {
               acumulados.push({
                 ok: true,
                 numeroOriginal: num,
                 ...data,
               });
+            } catch (err) {
+              acumulados.push({
+                ok: false,
+                numeroOriginal: num,
+                error: err.message || "Error consultando informe.",
+                codigo: err.codigo,
+              });
             }
-          } catch (err) {
-            acumulados.push({
-              ok: false,
-              numeroOriginal: num,
-              error: err.message || "Error consultando informe.",
-            });
           }
-        }
 
-        setResultados(acumulados);
-        setEstado(
-          `Se procesaron ${numerosSeparados.length} documentos (ver resultados debajo).`
-        );
-      } else {
-        // 🔹 Consulta simple (usuarios y admins)
-        const resp = await fetch("/api/infoexperto", {
-          method: "POST",
-          headers,
-          body: JSON.stringify({
+          setResultados(acumulados);
+          setEstado(
+            `Se procesaron ${numerosSeparados.length} documentos (ver resultados debajo).`
+          );
+        } else {
+          // 🔹 Consulta simple (usuarios y admins)
+          const data = await consultarInfoexperto({
+            token,
             tipoDocumento,
             numero: texto,
-          }),
-        });
+          });
 
-        const data = await resp.json().catch(() => null);
+          setResultados([
+            {
+              ok: true,
+              numeroOriginal: texto,
+              ...data,
+            },
+          ]);
 
-        if (!resp.ok) {
-          const msgCodigo = construirMensajeErrorCodigo(data?.codigo);
-          throw new Error(
-            msgCodigo ||
-              data?.error ||
-              `Error consultando informe (HTTP ${resp.status})`
-          );
+          setEstado("Informe obtenido correctamente.");
         }
-
-        if (data?.error) {
-          const msgCodigo = construirMensajeErrorCodigo(data.codigo);
-          throw new Error(msgCodigo || data.error);
+      } catch (err) {
+        console.error("Error consultando informe:", err);
+        setEstado(err.message || "Error consultando informe.");
+        if (!isAdmin) {
+          setResultados([]);
         }
-
-        setResultados([
-          {
-            ok: true,
-            numeroOriginal: texto,
-            ...data,
-          },
-        ]);
-        setEstado("Informe obtenido correctamente.");
+      } finally {
+        setCargando(false);
       }
-    } catch (err) {
-      console.error("Error consultando informe:", err);
-      setEstado(err.message || "Error consultando informe.");
-      if (!isAdmin) {
-        setResultados([]);
-      }
-    } finally {
-      setCargando(false);
-    }
-  };
+    };
 
+      
   const handleToggleDetalle = (idx) => {
     setDetallesAbiertos((prev) => ({
       ...prev,
@@ -456,8 +411,8 @@ function ReportsPage({ currentUser, isAdmin }) {
     DNI/CUIL: ${numeroLabel}
     Monto de financiación: ${formattedAmount}`;
 
-    const url = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
-    window.open(url, "_blank");
+    const url1 = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
+    window.open(url1, "_blank");
   };
 
   return (

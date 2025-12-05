@@ -53,6 +53,16 @@ app.use(cors({
 
 app.use(express.json());
 
+// ✅ Health check público (sin auth)
+app.get("/api/health", (req, res) => {
+  res.status(200).json({
+    ok: true,
+    service: "infoexperto-backend",
+    ts: new Date().toISOString(),
+  });
+});
+
+
 // 🔒 Rate limit para InfoExperto
 const infoexpertoLimiter = rateLimit({
   windowMs: 60 * 1000, // 1 minuto
