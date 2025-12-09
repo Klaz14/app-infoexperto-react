@@ -62,6 +62,34 @@ app.get("/api/health", (req, res) => {
   });
 });
 
+import crypto from "crypto";
+
+// --- Request logger minimalista y seguro ---
+app.use((req, res, next) => {
+  const start = Date.now();
+  const requestId = crypto.randomUUID();
+
+  // lo guardamos para el error handler
+  req.requestId = requestId;
+
+  // útil para correlación en frontend
+  res.setHeader("X-Request-Id", requestId);
+
+  // NO logueamos el token completo
+  const hasAuth = Boolean(req.headers.authorization);
+
+  res.on("finish", () => {
+    const ms = Date.now() - start;
+
+    // Log compacto
+    console.log(
+      `[${requestId}] ${req.method} ${req.originalUrl} -> ${res.statusCode} (${ms}ms) auth=${hasAuth ? "yes" : "no"}`
+    );
+  });
+
+  next();
+});
+
 
 // 🔒 Rate limit para InfoExperto
 const infoexpertoLimiter = rateLimit({
@@ -669,6 +697,28 @@ app.post(
     }
   }
 );
+
+// --- Error handler global ---
+app.use((err, req, res, next) => {
+  const requestId = req.requestId || "no-id";
+
+  console.error(`[${requestId}] Unhandled error on ${req.method} ${req.originalUrl}`);
+  console.error(err);
+
+  res.status(500).json({
+    error: "Error interno del servidor.",
+    requestId,
+  });
+});
+
+process.on("unhandledRejection", (reason) => {
+  console.error("Unhandled Rejection:", reason);
+});
+
+process.on("uncaughtException", (err) => {
+  console.error("Uncaught Exception:", err);
+});
+
 
 const HOST = process.env.HOST || "0.0.0.0";
 app.listen(PORT, HOST, () => {
