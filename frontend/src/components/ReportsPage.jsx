@@ -5,7 +5,7 @@ import { generateReportPdf } from "./generateReportPdf";
 import { FaWhatsapp } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { consultarInfoexperto } from "../services/infoexpertoApi";
-
+import calcularClienteSituacion5 from "../features/clienteSituacion5";
 
 const WHATSAPP_NUMBER = "5493813426488"; // ← cambiá esto por el número real, sin + ni espacios
 
@@ -324,15 +324,21 @@ function ReportsPage({ currentUser, isAdmin }) {
     }
   };
 
-  const handleWhatsAppClick = async (tipo, numeroDoc, nombre) => {
-    const phone = WHATSAPP_NUMBER || "5493813426488"; // remplazá por el real
+  const handleWhatsAppClick = async (tipo, numeroDoc, nombre, montoSugerido) => {
+    const phone = WHATSAPP_NUMBER || "5493813426488";
     const numeroLabel = numeroDoc || "";
     const nombreLabel = nombre || "";
+
+    const maxMontoSugerido = Number(montoSugerido || 0);
+    const maxMonto = maxMontoSugerido > 0 ? maxMontoSugerido : 2000000;
 
     const { value: montoRaw } = await Swal.fire({
       title: "Ingresa el monto de tu financiación:",
       input: "text",
       inputPlaceholder: "$ 0",
+      inputValue: maxMontoSugerido
+        ? `$ ${maxMontoSugerido.toLocaleString("en-US", { maximumFractionDigits: 0 })}`
+        : "",
       inputAttributes: {
         inputmode: "numeric",
         autocomplete: "off",
@@ -343,15 +349,12 @@ function ReportsPage({ currentUser, isAdmin }) {
       allowOutsideClick: false,
       allowEscapeKey: true,
 
-      // 👉 Formateo en tiempo real SIN decimales
       didOpen: () => {
         const input = Swal.getInput();
         if (!input) return;
 
         input.addEventListener("input", () => {
-          // Quitamos todo lo que no sea dígito
           const cleaned = input.value.replace(/[^0-9]/g, "");
-
           if (!cleaned) {
             input.value = "";
             return;
@@ -363,12 +366,9 @@ function ReportsPage({ currentUser, isAdmin }) {
             return;
           }
 
-          // Formato tipo 1,000,000 (sin .00 dentro del input)
-          const formatted = num.toLocaleString("en-US", {
-            maximumFractionDigits: 0,
-          });
-
-          input.value = "$ " + formatted;
+          const capped = Math.min(num, maxMonto);
+          input.value =
+            "$ " + capped.toLocaleString("en-US", { maximumFractionDigits: 0 });
         });
       },
 
@@ -378,7 +378,6 @@ function ReportsPage({ currentUser, isAdmin }) {
           return false;
         }
 
-        // De nuevo limpiamos: solo dígitos
         const cleaned = value.replace(/[^0-9]/g, "");
         const num = Number(cleaned);
 
@@ -387,33 +386,37 @@ function ReportsPage({ currentUser, isAdmin }) {
           return false;
         }
 
-        // Devolvemos el número "crudo" en enteros
+        if (num > maxMonto) {
+          const label = maxMontoSugerido
+            ? "El monto máximo permitido para este perfil es"
+            : "El monto máximo permitido es";
+          Swal.showValidationMessage(
+            `${label} $ ${maxMonto.toLocaleString("en-US", { maximumFractionDigits: 0 })}.`
+          );
+          return false;
+        }
+
         return num;
       },
     });
 
-    // Si canceló, no hacemos nada
-    if (!montoRaw) {
-      return;
-    }
+    // Canceló
+    if (montoRaw === undefined || montoRaw === null) return;
 
-    // Ahora sí, lo formateamos bonito para WhatsApp CON decimales
+    // WhatsApp sin decimales
     const montoNumber = Number(montoRaw);
     const formattedAmount =
-      "$ " +
-      montoNumber.toLocaleString("en-US", {
-        minimumFractionDigits: 2,
-        maximumFractionDigits: 2,
-      });
+      "$ " + montoNumber.toLocaleString("en-US", { maximumFractionDigits: 0 });
 
     const text = `Hola, gestiono consulta sobre el siguiente perfil:
-    ${nombreLabel}
-    DNI/CUIL: ${numeroLabel}
-    Monto de financiación: ${formattedAmount}`;
+  ${nombreLabel}
+  DNI/CUIL: ${numeroLabel}
+  Monto de financiación: ${formattedAmount}`;
 
     const url1 = `https://wa.me/${phone}?text=${encodeURIComponent(text)}`;
     window.open(url1, "_blank");
   };
+
 
   return (
     <main className="reports-container">
@@ -513,6 +516,7 @@ function ReportsPage({ currentUser, isAdmin }) {
 
               const informe = getInformeFromItem(item);
               const resumen = buildResumenCapacidadDesdeInfoExperto(informe);
+              const situacion5 = calcularClienteSituacion5({ data: { informe } });
 
               const riesgo = item.riesgo || item.riesgoApi;
               const nombreHeader =
@@ -553,38 +557,86 @@ function ReportsPage({ currentUser, isAdmin }) {
 
               return (
                 <div key={idx} className="multi-result-item">
-                  <div className="multi-result-header">
-                    <div className="multi-result-name">
-                      <strong>{nombreHeader}</strong>
-                      {numeroDoc && (
-                        <span className="multi-result-doc">
-                          {" "}
-                          — {tipo} {numeroDoc}
-                        </span>
+                  <div
+                    className="multi-result-header"
+                    style={{
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "flex-start",
+                      gap: "12px",
+                    }}
+                  >
+                    {/* Columna izquierda: Nombre -> Riesgo -> Monto */}
+                    <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                      <div className="multi-result-name">
+                        <strong>{nombreHeader}</strong>
+                        {numeroDoc && (
+                          <span className="multi-result-doc">
+                            {" "}
+                            — {tipo} {numeroDoc}
+                          </span>
+                        )}
+                      </div>
+
+                      <span
+                        className={getBadgeClase(riesgo)}
+                        data-riesgo={riesgoUpper}
+                        style={{ alignSelf: "flex-start", display: "inline-flex" }}
+                      >
+                        {riesgoLabel}
+                      </span>
+
+                      {situacion5?.monto && (
+                        <div
+                          className="whatsapp-monto"
+                          style={{
+                            alignSelf: "flex-start",
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: "6px",
+                            padding: "8px 12px",
+                            borderRadius: "999px",
+                            background: "#123A6B", // azul oscuro pero más claro que el fondo
+                            color: "#FFFFFF",
+                            fontSize: "0.95rem",
+                            lineHeight: 1,
+                            border: "1px solid rgba(255,255,255,0.12)",
+                            boxShadow: "0 0 0 1px rgba(0,0,0,0.15) inset",
+                            whiteSpace: "nowrap",
+                          }}
+                        >
+                          <span>Monto máximo disponible:</span>
+                          <strong style={{ fontWeight: 600 }}>
+                            $ {situacion5.monto.toLocaleString("en-US", { maximumFractionDigits: 0 })}
+                          </strong>
+                        </div>
                       )}
                     </div>
-                    {riesgo && (
-                      <div className="riesgos-container">
-                        <span
-                          className={getBadgeClase(riesgo)}
-                          data-riesgo={riesgoUpper}
-                        >
-                          {riesgoLabel}
-                        </span>
 
-                        {/* Botón solo para usuarios (no admins) */}
-                        {!isAdmin && (
-                          <button
-                            type="button"
-                            className="whatsapp-button"
-                            onClick={() =>
-                              handleWhatsAppClick(tipo, numeroDoc, nombreHeader)
-                            }
-                          >
-                            <FaWhatsapp className="whatsapp-icon" />
-                            <span>GESTIONA TU CONSULTA</span>
-                          </button>
-                        )}
+                    {/* Columna derecha: Botón al borde derecho, alineado con el monto */}
+                    {!isAdmin && (
+                      <div
+                        style={{
+                          display: "flex",
+                          flexDirection: "column",
+                          alignItems: "flex-end",
+                          height: "100%",
+                          gap: "8px",
+                        }}
+                      >
+                        {/* Espaciador para alinear con el bloque de "Monto máximo" */}
+                        <div style={{ height: "64px" }} />
+
+                        <button
+                          type="button"
+                          className="whatsapp-button"
+                          onClick={() =>
+                            handleWhatsAppClick(tipo, numeroDoc, nombreHeader, situacion5?.monto)
+                          }
+                        >
+                          <FaWhatsapp className="whatsapp-icon" />
+                          <span>GESTIONA TU CONSULTA</span>
+                        </button>
                       </div>
                     )}
                   </div>
