@@ -330,7 +330,6 @@ function ReportsPage({ currentUser, isAdmin }) {
     const nombreLabel = nombre || "";
 
     const maxMontoSugerido = Number(montoSugerido || 0);
-    const maxMonto = maxMontoSugerido > 0 ? maxMontoSugerido : 2000000;
 
     const { value: montoRaw } = await Swal.fire({
       title: "Ingresa el monto de tu financiación:",
@@ -366,9 +365,8 @@ function ReportsPage({ currentUser, isAdmin }) {
             return;
           }
 
-          const capped = Math.min(num, maxMonto);
           input.value =
-            "$ " + capped.toLocaleString("en-US", { maximumFractionDigits: 0 });
+            "$ " + num.toLocaleString("en-US", { maximumFractionDigits: 0 });
         });
       },
 
@@ -383,16 +381,6 @@ function ReportsPage({ currentUser, isAdmin }) {
 
         if (Number.isNaN(num) || num <= 0) {
           Swal.showValidationMessage("Ingresá un monto válido mayor a 0.");
-          return false;
-        }
-
-        if (num > maxMonto) {
-          const label = maxMontoSugerido
-            ? "El monto máximo permitido para este perfil es"
-            : "El monto máximo permitido es";
-          Swal.showValidationMessage(
-            `${label} $ ${maxMonto.toLocaleString("en-US", { maximumFractionDigits: 0 })}.`
-          );
           return false;
         }
 
