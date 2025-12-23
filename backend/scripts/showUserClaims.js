@@ -1,3 +1,4 @@
+// backend/scripts/showUserClaims.js
 import admin from "../src/firebaseAdmin.js";
 import { getAuth } from "firebase-admin/auth";
 

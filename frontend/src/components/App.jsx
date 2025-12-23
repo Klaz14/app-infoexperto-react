@@ -1,3 +1,4 @@
+//frontend/src/components/App.jsx
 import React, { useEffect, useState } from "react";
 import { onAuthStateChanged, signOut } from "firebase/auth";
 import { auth } from "../firebase.js";

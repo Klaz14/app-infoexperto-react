@@ -1,3 +1,4 @@
+//frontend/src/services/infoexpertoApi.js
 const API_BASE = (import.meta.env.VITE_API_BASE_URL || "").replace(/\/+$/, "");
 const url = `${API_BASE}/api/infoexperto`;
 
