@@ -328,7 +328,7 @@ function ReportsPage({ currentUser, isAdmin }) {
   };
 
   const handleWhatsAppClick = async (tipo, numeroDoc, nombre, montoSugerido) => {
-    const phone = WHATSAPP_NUMBER || "5493813426488";
+    const phone = WHATSAPP_NUMBER || "5493813573166";
     const numeroLabel = numeroDoc || "";
     const nombreLabel = nombre || "";
 
