@@ -6,8 +6,9 @@ import { FaWhatsapp } from "react-icons/fa";
 import Swal from "sweetalert2";
 import { consultarInfoexperto } from "../services/infoexpertoApi";
 import calcularClienteSituacion5 from "../features/clienteSituacion5";
+import { registrarClickAuditoria } from "../services/auditApi";
 
-const WHATSAPP_NUMBER = "5493813426488"; // ← cambiá esto por el número real, sin + ni espacios
+const WHATSAPP_NUMBER = "5493813573166"; // ← cambiá esto por el número real, sin + ni espacios
 
 /**
  * Construye el texto visible del riesgo según el rol.
@@ -226,6 +227,8 @@ function ReportsPage({ currentUser, isAdmin }) {
         );
         return;
       }
+
+      registrarClickAuditoria(user.email);
 
       try {
         setCargando(true);
